@@ -35,13 +35,17 @@ object PandaAST {
 
   sealed trait Block extends Inline
 
+  case class Par(value: String) extends Block
+
   case class CodeBlock(value: String, lang: String) extends Block
-  case class H1(value: String)                      extends Block
-  case class H2(value: String)                      extends Block
-  case class H3(value: String)                      extends Block
-  case class H4(value: String)                      extends Block
-  case class H5(value: String)                      extends Block
-  case class H6(value: String)                      extends Block
+
+  sealed trait Title           extends Block
+  case class H1(value: String) extends Title
+  case class H2(value: String) extends Title
+  case class H3(value: String) extends Title
+  case class H4(value: String) extends Title
+  case class H5(value: String) extends Title
+  case class H6(value: String) extends Title
 
   case class List(value: String)     extends Block
   case class ListItem(value: String) extends Block
@@ -53,26 +57,31 @@ object PandaParser {
   import fastparse._
   import fastparse.NoWhitespace._
 
-  def space[_: P] = P(CharsWhileIn(" ", 1))
+  def space[_: P]   = P(CharsWhileIn(" ", 1))
+  def newline[_: P] = P(CharsWhileIn("\r\n", 0))
 
   def hexDigit[_: P]      = P(CharIn("0-9a-fA-F"))
-  def unicodeEscape[_: P] = P("u" ~ hexDigit ~ hexDigit ~ hexDigit ~ hexDigit)
-  def escape[_: P]        = P("\\" ~ (CharIn("\"/\\\\bfnrt") | unicodeEscape))
+  def unicodeEscape[_: P] = P("u" ~ hexDigit.rep(exactly = 4))
+  def escape[_: P]        = P("\\" ~ (CharIn("\"/\\bfnrt") | unicodeEscape))
 
-  def string[_: P] = P(escape | space | AnyChar)
+  def strChar[_: P] = P(escape | space | AnyChar)
 
-  def str[_: P]     = P(string.rep.!).map(PandaAST.Str)
-  def italic[_: P]  = P("/" ~ string ~ "/").!.map(PandaAST.Italic)
-  def bold[_: P]    = P("*" ~ string ~ "*").!.map(PandaAST.Bold)
-  def crossed[_: P] = P("~" ~ string ~ "~").!.map(PandaAST.Crossed)
-  def code[_: P]    = P("`" ~ string ~ "`").!.map(PandaAST.Code)
+  def str[_: P]     = P(strChar.rep).!.map(PandaAST.Str)
+  def italic[_: P]  = P("/" ~ strChar.rep ~ "/").!.map(PandaAST.Italic)
+  def bold[_: P]    = P("*" ~ strChar.rep ~ "*").!.map(PandaAST.Bold)
+  def crossed[_: P] = P("~" ~ strChar.rep ~ "~").!.map(PandaAST.Crossed)
+  def code[_: P]    = P("`" ~ strChar.rep ~ "`").!.map(PandaAST.Code)
+  def inline[_: P]  = P(str | italic | bold | crossed | code)
 
-  def h1[_: P] = P("#".rep(1) ~ space ~ string.!).map(PandaAST.H1)
-  def h2[_: P] = P("#".rep(2) ~ space ~ string.!).map(PandaAST.H2)
-  def h3[_: P] = P("#".rep(3) ~ space ~ string.!).map(PandaAST.H3)
-  def h4[_: P] = P("#".rep(4) ~ space ~ string.!).map(PandaAST.H4)
-  def h5[_: P] = P("#".rep(5) ~ space ~ string.!).map(PandaAST.H5)
-  def h6[_: P] = P("#".rep(6) ~ space ~ string.!).map(PandaAST.H6)
+  def h1[_: P]    = P("#".rep(exactly = 1) ~ space ~ inline.!).map(PandaAST.H1)
+  def h2[_: P]    = P("#".rep(exactly = 2) ~ space ~ inline.!).map(PandaAST.H2)
+  def h3[_: P]    = P("#".rep(exactly = 3) ~ space ~ inline.!).map(PandaAST.H3)
+  def h4[_: P]    = P("#".rep(exactly = 4) ~ space ~ inline.!).map(PandaAST.H4)
+  def h5[_: P]    = P("#".rep(exactly = 5) ~ space ~ inline.!).map(PandaAST.H5)
+  def h6[_: P]    = P("#".rep(exactly = 6) ~ space ~ inline.!).map(PandaAST.H6)
+  def title[_: P] = P(h1 | h2 | h3 | h4 | h5 | h6)
+
+  def block[_: P] = P(newline ~ (title) ~ newline)
 }
 
 object JsonParser {
