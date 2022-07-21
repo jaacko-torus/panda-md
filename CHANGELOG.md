@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning].
 ## [Unreleased]
 
 ### Added
-- 
+- Changelog
+- License
+- Readme
 
 ### Changed
 
